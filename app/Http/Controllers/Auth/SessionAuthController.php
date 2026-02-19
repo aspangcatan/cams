@@ -96,7 +96,7 @@ class SessionAuthController extends Controller
     private function hasCamsAdminAccess(int $userId): bool
     {
         $camsSystemCode = AccessSystem::query()
-            ->whereRaw('LOWER(system) = ?', ['cams'])
+            ->whereRaw('LOWER(`system`) = ?', ['cams'])
             ->value('system') ?? 'cams';
 
         return UserPrivilege::query()

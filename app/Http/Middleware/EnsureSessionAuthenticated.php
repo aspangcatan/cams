@@ -30,7 +30,7 @@ class EnsureSessionAuthenticated
     private function hasCamsAdminAccess(int $userId): bool
     {
         $camsSystemCode = AccessSystem::query()
-            ->whereRaw('LOWER(system) = ?', ['cams'])
+            ->whereRaw('LOWER(`system`) = ?', ['cams'])
             ->orWhereRaw('LOWER(description) LIKE ?', ['%cams%'])
             ->value('system') ?? 'cams';
 

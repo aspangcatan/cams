@@ -262,13 +262,18 @@
                     { name: "fname", label: "First Name", type: "text", required: true },
                     { name: "mname", label: "Middle Name", type: "text" },
                     { name: "lname", label: "Last Name", type: "text", required: true },
+                    { name: "birthdate", label: "Birthdate", type: "date" },
+                    { name: "date_hired", label: "Date Hired", type: "date" },
+                    { name: "sex", label: "Sex", type: "select", source: "sexes", valueType: "string" },
+                    { name: "employee_type", label: "Employment Type", type: "select", source: "employeeTypes", valueType: "string" },
+                    { name: "is_deployed", label: "Deployed Bukas", type: "select", source: "deploymentFlags" },
+                    { name: "employee_no", label: "Agency Employee No.", type: "text" },
                     { name: "suffix", label: "Suffix", type: "text" },
                     { name: "username", label: "Username", type: "text", required: true },
                     { name: "password", label: "Password", type: "password", requiredOnCreate: true, hideInTable: true },
                     { name: "designation", label: "Designation", type: "select", source: "designations", searchable: true },
                     { name: "division", label: "Division", type: "select", source: "divisions", searchable: true },
-                    { name: "section", label: "Section", type: "select", source: "sections", searchable: true },
-                    { name: "status", label: "Status", type: "text" }
+                    { name: "section", label: "Section", type: "select", source: "sections", searchable: true }
                 ]
             },
             {
@@ -322,7 +327,24 @@
                 designations: [],
                 divisions: [],
                 sections: [],
-                systems: []
+                systems: [],
+                sexes: [
+                    { id: "MALE", label: "MALE" },
+                    { id: "FEMALE", label: "FEMALE" }
+                ],
+                employeeTypes: [
+                    { id: "Job Order", label: "Job Order" },
+                    { id: "Permanent", label: "Permanent" },
+                    { id: "Resigned", label: "Resigned" },
+                    { id: "Retired", label: "Retired" },
+                    { id: "Temporary", label: "Temporary" },
+                    { id: "EOT", label: "EOT" },
+                    { id: "COS", label: "COS" }
+                ],
+                deploymentFlags: [
+                    { id: 1, label: "Yes" },
+                    { id: 2, label: "No" }
+                ]
             },
             pagination: {
                 currentPage: 1,
@@ -548,8 +570,17 @@
             recordForm.innerHTML = activeFields.map((field) => {
                 const value = state.editingRecord ? state.editingRecord[field.name] ?? "" : "";
                 const isRequired = Boolean(field.required || (field.requiredOnCreate && !state.editingRecord));
+                let fieldOptions = state.options[field.source] || [];
+
+                if (state.activeModule.key === "users" && field.name === "section") {
+                    const selectedDivision = state.editingRecord
+                        ? String(state.editingRecord.division ?? "")
+                        : "";
+                    fieldOptions = filterSectionsByDivision(selectedDivision);
+                }
+
                 if (field.type === "select") {
-                    const options = (state.options[field.source] || []).map((option) => `
+                    const options = fieldOptions.map((option) => `
                         <option value="${escapeAttr(option.id)}" ${String(value) === String(option.id) ? "selected" : ""}>
                             ${escapeHtml(option.label)}
                         </option>
@@ -586,6 +617,7 @@
             }).join("");
 
             initializeSearchableSelects();
+            bindUserDivisionSectionFilter();
         }
 
         async function loadUsersOptions() {
@@ -616,15 +648,70 @@
             if (!response.ok) throw new Error(`Unable to load ${source} options.`);
             const rows = await response.json();
 
-            state.options[source] = rows.map((row) => {
+            const shouldSortByDescription = ["designations", "divisions", "sections"].includes(source);
+            const sortedRows = shouldSortByDescription
+                ? [...rows].sort((a, b) => String(a.description || "").localeCompare(String(b.description || ""), undefined, { sensitivity: "base" }))
+                : rows;
+
+            state.options[source] = sortedRows.map((row) => {
                 const label = source === "systems"
                     ? (row.description || row.system || `ID ${row.id}`)
                     : (row.description || row.name || row.system || `ID ${row.id}`);
                 return {
                     id: row.id,
-                    label
+                    label,
+                    division: row.division ?? null,
+                    division_id: row.division_id ?? null
                 };
             });
+        }
+
+        function filterSectionsByDivision(divisionId) {
+            const selectedDivision = String(divisionId || "").trim();
+            if (selectedDivision === "") return [];
+
+            return (state.options.sections || []).filter((section) => {
+                const sectionDivision = section.division ?? section.division_id ?? null;
+                return String(sectionDivision ?? "") === selectedDivision;
+            });
+        }
+
+        function bindUserDivisionSectionFilter() {
+            if (state.activeModule.key !== "users") return;
+
+            const divisionSelect = recordForm.querySelector('select[name="division"]');
+            const sectionSelect = recordForm.querySelector('select[name="section"]');
+            if (!divisionSelect || !sectionSelect) return;
+
+            const updateSectionOptions = () => {
+                const filteredSections = filterSectionsByDivision(divisionSelect.value);
+                const currentSection = String(sectionSelect.value || "");
+                const hasCurrentSection = filteredSections.some((section) => String(section.id) === currentSection);
+                const nextSectionValue = hasCurrentSection ? currentSection : "";
+
+                sectionSelect.innerHTML = `<option value="">Select section</option>${filteredSections.map((section) => `
+                    <option value="${escapeAttr(section.id)}" ${String(section.id) === nextSectionValue ? "selected" : ""}>
+                        ${escapeHtml(section.label)}
+                    </option>
+                `).join("")}`;
+                sectionSelect.value = nextSectionValue;
+
+                if (sectionSelect.tomselect) {
+                    sectionSelect.tomselect.clearOptions();
+                    sectionSelect.tomselect.addOptions(filteredSections.map((section) => ({
+                        value: String(section.id),
+                        text: section.label
+                    })));
+                    sectionSelect.tomselect.refreshOptions(false);
+                    sectionSelect.tomselect.setValue(nextSectionValue, true);
+                }
+            };
+
+            divisionSelect.addEventListener("change", updateSectionOptions);
+            if (divisionSelect.tomselect) {
+                divisionSelect.tomselect.on("change", updateSectionOptions);
+            }
+            updateSectionOptions();
         }
 
         async function ensureFieldOptions() {
@@ -800,7 +887,13 @@
             state.activeModule.fields.forEach((field) => {
                 const value = formData.get(field.name);
                 if (value === null || value === "") return;
-                payload[field.name] = (field.type === "number" || field.type === "select") ? Number(value) : String(value);
+
+                if (field.type === "number" || (field.type === "select" && field.valueType !== "string")) {
+                    payload[field.name] = Number(value);
+                    return;
+                }
+
+                payload[field.name] = String(value);
             });
 
             const isEdit = Boolean(state.editingRecord);

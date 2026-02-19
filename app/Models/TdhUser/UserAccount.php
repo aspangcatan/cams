@@ -2,6 +2,7 @@
 
 namespace App\Models\TdhUser;
 
+use App\Models\Hris\Employee;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
@@ -25,11 +26,17 @@ class UserAccount extends Model
         'division',
         'section',
         'status',
+        'is_deployed',
     ];
 
     protected $hidden = [
         'password',
     ];
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class, 'user_id', 'id');
+    }
 
     public function setPasswordAttribute($value): void
     {
