@@ -956,7 +956,7 @@
         }
 
         async function resetPassword(id) {
-            const confirmed = await confirmAction("Reset password?", `Set user #${id} password to 1234.`, "Yes, reset");
+            const confirmed = await confirmAction("Reset password?", `Set user #${id} password to 123456.`, "Yes, reset");
             if (!confirmed) {
                 return;
             }
