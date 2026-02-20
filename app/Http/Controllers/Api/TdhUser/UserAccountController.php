@@ -128,11 +128,11 @@ class UserAccountController extends CrudController
     public function resetPassword(int $id): JsonResponse
     {
         $user = UserAccount::query()->findOrFail($id);
-        $user->password = '1234';
+        $user->password = '123456';
         $user->save();
 
         return response()->json([
-            'message' => 'Password reset to 1234.',
+            'message' => 'Password reset to 123456',
         ]);
     }
 
