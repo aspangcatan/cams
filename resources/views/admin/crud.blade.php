@@ -237,7 +237,7 @@
                 endpoint: joinUrl(API_BASE, "tdh-user/divisions"),
                 fields: [
                     { name: "description", label: "Description", type: "text", required: true },
-                    { name: "head", label: "Head User", type: "select", source: "users" },
+                    { name: "head", label: "Head User", type: "select", source: "users", searchable: true },
                     { name: "code", label: "Code", type: "text" }
                 ]
             },
@@ -250,6 +250,7 @@
                     { name: "description", label: "Description", type: "text", required: true },
                     { name: "head", label: "Head User", type: "select", source: "users", searchable: true },
                     { name: "code", label: "Code", type: "text" },
+                    { name: "division", label: "Division", type: "select", source: "divisions", searchable: true },
                     { name: "subsection", label: "Parent Section", type: "select", source: "sections", searchable: true }
                 ]
             },
@@ -264,9 +265,9 @@
                     { name: "lname", label: "Last Name", type: "text", required: true },
                     { name: "birthdate", label: "Birthdate", type: "date" },
                     { name: "date_hired", label: "Date Hired", type: "date" },
-                    { name: "sex", label: "Sex", type: "select", source: "sexes", valueType: "string" },
-                    { name: "employee_type", label: "Employment Type", type: "select", source: "employeeTypes", valueType: "string" },
-                    { name: "is_deployed", label: "Deployed Bukas", type: "select", source: "deploymentFlags" },
+                    { name: "sex", label: "Sex", type: "select", source: "sexes", valueType: "string", searchable: true },
+                    { name: "employee_type", label: "Employment Type", type: "select", source: "employeeTypes", valueType: "string", searchable: true },
+                    { name: "is_deployed", label: "Deployed Bukas", type: "select", source: "deploymentFlags", searchable: true },
                     { name: "employee_no", label: "Agency Employee No.", type: "text" },
                     { name: "suffix", label: "Suffix", type: "text" },
                     { name: "username", label: "Username", type: "text", required: true },
@@ -411,6 +412,10 @@
         const prevPageBtn = document.getElementById("prevPageBtn");
         const nextPageBtn = document.getElementById("nextPageBtn");
         const pageInfo = document.getElementById("pageInfo");
+
+        function sortOptionsByLabel(options) {
+            return [...(options || [])].sort((a, b) => String(a?.label || "").localeCompare(String(b?.label || ""), undefined, { sensitivity: "base" }));
+        }
 
         function renderModuleNav() {
             moduleNav.innerHTML = getOrderedModules().map((mod) => {
@@ -570,7 +575,7 @@
             recordForm.innerHTML = activeFields.map((field) => {
                 const value = state.editingRecord ? state.editingRecord[field.name] ?? "" : "";
                 const isRequired = Boolean(field.required || (field.requiredOnCreate && !state.editingRecord));
-                let fieldOptions = state.options[field.source] || [];
+                let fieldOptions = sortOptionsByLabel(state.options[field.source] || []);
 
                 if (state.activeModule.key === "users" && field.name === "section") {
                     const selectedDivision = state.editingRecord
@@ -592,7 +597,7 @@
                             <select
                                 name="${field.name}"
                                 ${isRequired ? "required" : ""}
-                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-tide transition focus:ring-2 ${field.searchable ? "js-searchable-select" : ""}"
+                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-tide transition focus:ring-2 js-searchable-select"
                             >
                                 <option value="">Select ${escapeHtml(field.label.toLowerCase())}</option>
                                 ${options}
@@ -637,7 +642,7 @@
                     id: user.id,
                     label: fullName || fallback
                 };
-            });
+            }).sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: "base" }));
         }
 
         async function loadSimpleOptions(source, endpoint) {
@@ -648,12 +653,7 @@
             if (!response.ok) throw new Error(`Unable to load ${source} options.`);
             const rows = await response.json();
 
-            const shouldSortByDescription = ["designations", "divisions", "sections"].includes(source);
-            const sortedRows = shouldSortByDescription
-                ? [...rows].sort((a, b) => String(a.description || "").localeCompare(String(b.description || ""), undefined, { sensitivity: "base" }))
-                : rows;
-
-            state.options[source] = sortedRows.map((row) => {
+            state.options[source] = rows.map((row) => {
                 const label = source === "systems"
                     ? (row.description || row.system || `ID ${row.id}`)
                     : (row.description || row.name || row.system || `ID ${row.id}`);
@@ -663,7 +663,7 @@
                     division: row.division ?? null,
                     division_id: row.division_id ?? null
                 };
-            });
+            }).sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: "base" }));
         }
 
         function filterSectionsByDivision(divisionId) {
@@ -1114,7 +1114,11 @@
         }
 
         function renderAssignmentFormOptions() {
-            const roleOptions = state.assignment.roles.map((role) => {
+            const roleOptions = [...state.assignment.roles].sort((a, b) => {
+                const aLabel = a.role_description ? `${a.role} (${a.role_description})` : String(a.role || "");
+                const bLabel = b.role_description ? `${b.role} (${b.role_description})` : String(b.role || "");
+                return aLabel.localeCompare(bLabel, undefined, { sensitivity: "base" });
+            }).map((role) => {
                 const label = role.role_description
                     ? `${role.role} (${role.role_description})`
                     : role.role;
@@ -1123,7 +1127,7 @@
 
             assignmentRoleSelect.innerHTML = `<option value="">Select role</option>${roleOptions}`;
 
-            const userOptions = (state.options.users || []).map((user) => `
+            const userOptions = sortOptionsByLabel(state.options.users || []).map((user) => `
                 <option value="${escapeAttr(user.id)}">${escapeHtml(user.label)}</option>
             `).join("");
             assignmentUsersSelect.innerHTML = userOptions;
@@ -1332,6 +1336,10 @@
 
             if (state.activeModule.key === "sections" && column === "subsection") {
                 return getOptionLabel("sections", row.subsection);
+            }
+
+            if (state.activeModule.key === "sections" && column === "division") {
+                return getOptionLabel("divisions", row.division);
             }
 
             if (state.activeModule.key === "device-lists" && column === "userid") {

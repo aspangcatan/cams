@@ -13,6 +13,7 @@ class SectionController extends CrudController
         'description' => 'required|string|max:255',
         'head' => 'nullable|integer',
         'code' => 'nullable|string|max:100',
+        'division' => 'nullable|integer',
         'subsection' => 'nullable|integer',
     ];
 }

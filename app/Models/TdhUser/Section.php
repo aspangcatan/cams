@@ -17,6 +17,7 @@ class Section extends Model
         'description',
         'head',
         'code',
+        'division',
         'subsection',
     ];
 }
