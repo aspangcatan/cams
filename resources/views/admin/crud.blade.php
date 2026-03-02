@@ -261,7 +261,7 @@
                 endpoint: joinUrl(API_BASE, "tdh-user/users"),
                 fields: [
                     { name: "fname", label: "First Name", type: "text", required: true },
-                    { name: "mname", label: "Middle Name", type: "text" },
+                    { name: "mname", label: "Middle Name", type: "text", persistEmpty: true },
                     { name: "lname", label: "Last Name", type: "text", required: true },
                     { name: "birthdate", label: "Birthdate", type: "date" },
                     { name: "date_hired", label: "Date Hired", type: "date" },
@@ -886,7 +886,14 @@
             const payload = {};
             state.activeModule.fields.forEach((field) => {
                 const value = formData.get(field.name);
-                if (value === null || value === "") return;
+                if (value === null) return;
+
+                if (value === "") {
+                    if (field.persistEmpty) {
+                        payload[field.name] = "";
+                    }
+                    return;
+                }
 
                 if (field.type === "number" || (field.type === "select" && field.valueType !== "string")) {
                     payload[field.name] = Number(value);
