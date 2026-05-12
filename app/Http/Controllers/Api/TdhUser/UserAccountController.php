@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class UserAccountController extends CrudController
 {
@@ -128,7 +129,7 @@ class UserAccountController extends CrudController
     public function resetPassword(int $id): JsonResponse
     {
         $user = UserAccount::query()->findOrFail($id);
-        $user->password = '123456';
+        $user->password = Hash::make('123456');
         $user->save();
 
         return response()->json([
