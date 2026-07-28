@@ -270,6 +270,7 @@
                     { name: "is_deployed", label: "Deployed Bukas", type: "select", source: "deploymentFlags", searchable: true },
                     { name: "employee_no", label: "Agency Employee No.", type: "text" },
                     { name: "suffix", label: "Suffix", type: "text" },
+                    { name: "title", label: "Title", type: "text" },
                     { name: "username", label: "Username", type: "text", required: true },
                     { name: "password", label: "Password", type: "password", requiredOnCreate: true, hideInTable: true },
                     { name: "designation", label: "Designation", type: "select", source: "designations", searchable: true },

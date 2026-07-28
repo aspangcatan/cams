@@ -20,6 +20,7 @@ class UserAccount extends Model
         'mname',
         'lname',
         'suffix',
+        'title',
         'username',
         'password',
         'designation',

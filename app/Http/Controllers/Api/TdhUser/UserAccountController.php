@@ -20,6 +20,7 @@ class UserAccountController extends CrudController
         'mname' => 'nullable|string|max:255',
         'lname' => 'required|string|max:255',
         'suffix' => 'nullable|string|max:50',
+        'title' => 'nullable|string|max:100',
         'username' => 'required|string|max:255',
         'password' => 'required|string|min:4|max:255',
         'designation' => 'nullable|integer',
