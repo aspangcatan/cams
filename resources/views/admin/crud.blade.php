@@ -188,6 +188,46 @@
         </div>
     </div>
 
+    <div id="rolesModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/45 p-4">
+        <div class="w-full max-w-4xl rounded-3xl border border-white/70 bg-white p-6 shadow-premium">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold">Manage Roles</h3>
+                    <p id="rolesModalSubtitle" class="text-sm text-slate-500"></p>
+                </div>
+                <button id="closeRolesModalBtn" class="rounded-lg border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+
+            <form id="roleForm" class="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_1fr_auto]">
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-600">Role</label>
+                    <input id="roleInput" type="text" required maxlength="255" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-tide transition focus:ring-2">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-600">Role Description</label>
+                    <input id="roleDescriptionInput" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-tide transition focus:ring-2">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button id="cancelRoleEditBtn" type="button" class="hidden h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                    <button id="saveRoleBtn" type="submit" class="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-dawn">Add Role</button>
+                </div>
+            </form>
+
+            <div class="mt-5 max-h-[50vh] overflow-auto rounded-2xl border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="sticky top-0 bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Role</th>
+                            <th class="px-3 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Description</th>
+                            <th class="px-3 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rolesTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div id="passwordModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/45 p-4">
         <div class="w-full max-w-xl rounded-3xl border border-white/70 bg-white p-6 shadow-premium">
             <div class="mb-4 flex items-center justify-between">
@@ -289,17 +329,6 @@
                 ]
             },
             {
-                key: "access-rights",
-                title: "Access Rights",
-                description: "central_access.systems_access_rights",
-                endpoint: joinUrl(API_BASE, "central-access/access-rights"),
-                fields: [
-                    { name: "system_id", label: "System", type: "select", source: "systems", searchable: true, required: true },
-                    { name: "role", label: "Role", type: "text", required: true },
-                    { name: "role_description", label: "Role Description", type: "text" }
-                ]
-            },
-            {
                 key: "device-lists",
                 title: "Device Lists",
                 description: "central_access.device_lists",
@@ -370,6 +399,11 @@
                 },
                 search: "",
                 searchTimer: null
+            },
+            roles: {
+                system: null,
+                rows: [],
+                editing: null
             }
         };
 
@@ -400,6 +434,15 @@
         const assignmentSearchInput = document.getElementById("assignmentSearchInput");
         const saveAssignmentsBtn = document.getElementById("saveAssignmentsBtn");
         const assignmentsTableBody = document.getElementById("assignmentsTableBody");
+        const rolesModal = document.getElementById("rolesModal");
+        const rolesModalSubtitle = document.getElementById("rolesModalSubtitle");
+        const closeRolesModalBtn = document.getElementById("closeRolesModalBtn");
+        const roleForm = document.getElementById("roleForm");
+        const roleInput = document.getElementById("roleInput");
+        const roleDescriptionInput = document.getElementById("roleDescriptionInput");
+        const cancelRoleEditBtn = document.getElementById("cancelRoleEditBtn");
+        const saveRoleBtn = document.getElementById("saveRoleBtn");
+        const rolesTableBody = document.getElementById("rolesTableBody");
         const passwordModal = document.getElementById("passwordModal");
         const passwordForm = document.getElementById("passwordForm");
         const closePasswordModalBtn = document.getElementById("closePasswordModalBtn");
@@ -539,7 +582,8 @@
                                 : `<button data-id="${row.id}" data-action="edit" class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</button>`
                             }
                             ${state.activeModule.key === "systems"
-                                ? `<button data-id="${row.id}" data-action="assign" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Assign</button>`
+                                ? `<button data-id="${row.id}" data-action="roles" class="rounded-lg border border-teal-300 px-3 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-50">Manage Roles</button>
+                                   <button data-id="${row.id}" data-action="assign" class="rounded-lg border border-indigo-300 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">Assign</button>`
                                 : ""}
                             ${state.activeModule.key === "users"
                                 ? `<button data-id="${row.id}" data-action="reset" class="rounded-lg border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50">Reset</button>`
@@ -567,6 +611,9 @@
                 }
                 if (action === "assign") {
                     btn.addEventListener("click", () => openAssignAccess(id));
+                }
+                if (action === "roles") {
+                    btn.addEventListener("click", () => openManageRoles(id));
                 }
             });
         }
@@ -744,8 +791,7 @@
                 loadUsersOptions(),
                 loadSimpleOptions("designations", joinUrl(API_BASE, "tdh-user/designations")),
                 loadSimpleOptions("divisions", joinUrl(API_BASE, "tdh-user/divisions")),
-                loadSimpleOptions("sections", joinUrl(API_BASE, "tdh-user/sections")),
-                loadSimpleOptions("systems", joinUrl(API_BASE, "central-access/systems"))
+                loadSimpleOptions("sections", joinUrl(API_BASE, "tdh-user/sections"))
             ]);
         }
 
@@ -1060,6 +1106,176 @@
             }
         }
 
+        async function openManageRoles(systemId) {
+            const row = state.records.find((item) => Number(item.id) === Number(systemId));
+            state.roles.system = row || { id: systemId, system: `#${systemId}`, description: "" };
+            rolesModalSubtitle.textContent = `${state.roles.system.system || ""} - ${state.roles.system.description || ""}`.trim();
+            resetRoleForm();
+
+            rolesModal.classList.remove("hidden");
+            rolesModal.classList.add("flex");
+            await loadRoles();
+            roleInput.focus();
+        }
+
+        function closeManageRoles() {
+            rolesModal.classList.add("hidden");
+            rolesModal.classList.remove("flex");
+            state.roles.system = null;
+            state.roles.rows = [];
+            resetRoleForm();
+        }
+
+        async function loadRoles() {
+            rolesTableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">Loading roles...</td>
+                </tr>
+            `;
+
+            try {
+                const params = new URLSearchParams({ all: "1", system_id: String(state.roles.system.id) });
+                const response = await fetch(`${joinUrl(API_BASE, "central-access/access-rights")}?${params.toString()}`);
+                if (!response.ok) throw new Error("Unable to load roles");
+                const rows = await response.json();
+                state.roles.rows = [...rows].sort((a, b) => String(a.role || "").localeCompare(String(b.role || ""), undefined, { sensitivity: "base" }));
+                renderRolesTable();
+            } catch (error) {
+                rolesTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="px-3 py-8 text-center text-sm text-rose-600">Failed to load roles.</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function renderRolesTable() {
+            if (!state.roles.rows.length) {
+                rolesTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="px-3 py-8 text-center text-sm text-slate-500">No roles yet. Add one above.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            rolesTableBody.innerHTML = state.roles.rows.map((item) => `
+                <tr class="hover:bg-slate-50 ${state.roles.editing && Number(state.roles.editing.id) === Number(item.id) ? "bg-amber-50" : ""}">
+                    <td class="px-3 py-3 text-sm font-semibold text-slate-700">${escapeHtml(formatValue(item.role))}</td>
+                    <td class="px-3 py-3 text-sm text-slate-700">${escapeHtml(formatValue(item.role_description))}</td>
+                    <td class="px-3 py-3 text-right">
+                        <div class="inline-flex gap-2">
+                            <button data-role-id="${item.id}" data-action="edit-role" class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</button>
+                            <button data-role-id="${item.id}" data-action="delete-role" class="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join("");
+
+            rolesTableBody.querySelectorAll("button").forEach((btn) => {
+                const roleId = Number(btn.dataset.roleId);
+                if (btn.dataset.action === "edit-role") {
+                    btn.addEventListener("click", () => startEditRole(roleId));
+                }
+                if (btn.dataset.action === "delete-role") {
+                    btn.addEventListener("click", () => deleteRole(roleId));
+                }
+            });
+        }
+
+        function startEditRole(roleId) {
+            const found = state.roles.rows.find((row) => Number(row.id) === Number(roleId));
+            if (!found) return;
+            state.roles.editing = found;
+            roleInput.value = found.role || "";
+            roleDescriptionInput.value = found.role_description || "";
+            saveRoleBtn.textContent = "Update Role";
+            cancelRoleEditBtn.classList.remove("hidden");
+            renderRolesTable();
+            roleInput.focus();
+        }
+
+        function resetRoleForm() {
+            state.roles.editing = null;
+            roleForm.reset();
+            saveRoleBtn.textContent = "Add Role";
+            cancelRoleEditBtn.classList.add("hidden");
+        }
+
+        async function saveRole(event) {
+            event.preventDefault();
+            if (!state.roles.system?.id) return;
+
+            const role = roleInput.value.trim();
+            if (!role) {
+                showErrorAlert("Role is required.");
+                return;
+            }
+
+            const isEdit = Boolean(state.roles.editing);
+            const endpoint = joinUrl(API_BASE, "central-access/access-rights");
+            const url = isEdit ? `${endpoint}/${state.roles.editing.id}` : endpoint;
+
+            saveRoleBtn.disabled = true;
+            saveRoleBtn.textContent = "Saving...";
+
+            try {
+                const response = await fetch(url, {
+                    method: isEdit ? "PUT" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        system_id: Number(state.roles.system.id),
+                        role,
+                        role_description: roleDescriptionInput.value.trim() || null
+                    })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    const msg = data.message || "Failed to save role.";
+                    const details = data.errors ? " " + Object.values(data.errors).flat().join(" ") : "";
+                    throw new Error(msg + details);
+                }
+
+                resetRoleForm();
+                await loadRoles();
+                showSuccessToast(isEdit ? "Role updated." : "Role added.");
+            } catch (error) {
+                showErrorAlert(error.message || "Unable to save role.");
+            } finally {
+                saveRoleBtn.disabled = false;
+                saveRoleBtn.textContent = state.roles.editing ? "Update Role" : "Add Role";
+            }
+        }
+
+        async function deleteRole(roleId) {
+            const found = state.roles.rows.find((row) => Number(row.id) === Number(roleId));
+            const confirmed = await confirmAction("Delete this role?", `Role "${found?.role || `#${roleId}`}" will be permanently removed.`, "Yes, delete it");
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(joinUrl(API_BASE, `central-access/access-rights/${roleId}`), {
+                    method: "DELETE",
+                    headers: {
+                        "Accept": "application/json",
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+                if (!response.ok) throw new Error("Delete failed");
+                if (state.roles.editing && Number(state.roles.editing.id) === Number(roleId)) {
+                    resetRoleForm();
+                }
+                await loadRoles();
+                showSuccessToast("Role deleted.");
+            } catch (error) {
+                showErrorAlert("Unable to delete role.");
+            }
+        }
+
         function closeAssignAccess() {
             assignModal.classList.add("hidden");
             assignModal.classList.remove("flex");
@@ -1354,10 +1570,6 @@
                 return getOptionLabel("users", row.userid);
             }
 
-            if (state.activeModule.key === "access-rights" && column === "system_id") {
-                return getOptionLabel("systems", row.system_id);
-            }
-
             return formatValue(row[column]);
         }
 
@@ -1475,6 +1687,15 @@
         savePasswordBtn.addEventListener("click", submitPasswordChange);
         closeAssignModalBtn.addEventListener("click", closeAssignAccess);
         saveAssignmentsBtn.addEventListener("click", saveAssignments);
+        closeRolesModalBtn.addEventListener("click", closeManageRoles);
+        cancelRoleEditBtn.addEventListener("click", () => {
+            resetRoleForm();
+            renderRolesTable();
+        });
+        roleForm.addEventListener("submit", saveRole);
+        rolesModal.addEventListener("click", (event) => {
+            if (event.target === rolesModal) closeManageRoles();
+        });
         assignmentSearchInput.addEventListener("input", () => {
             if (!state.assignment.system?.id) return;
             if (state.assignment.searchTimer) {

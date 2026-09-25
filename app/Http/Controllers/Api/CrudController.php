@@ -15,10 +15,18 @@ abstract class CrudController extends Controller
 
     protected array $updateRules = [];
 
+    protected array $filterable = [];
+
     public function index(Request $request): JsonResponse
     {
         $modelClass = $this->modelClass;
         $query = $modelClass::query()->orderByDesc('id');
+
+        foreach ($this->filterable as $column) {
+            if ($request->filled($column)) {
+                $query->where($column, $request->query($column));
+            }
+        }
 
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {

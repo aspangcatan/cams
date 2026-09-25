@@ -14,4 +14,6 @@ class AccessRightController extends CrudController
         'role' => 'required|string|max:255',
         'role_description' => 'nullable|string|max:255',
     ];
+
+    protected array $filterable = ['system_id'];
 }
